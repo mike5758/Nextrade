@@ -3,72 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>넥스트레이드 실시간 뉴스판</title>
+    <title>Nextrade 뉴스 대시보드</title>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
-        h1 { color: #38bdf8; text-align: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-top: 20px; }
+        h1 { color: #38bdf8; text-align: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-top: 20px; font-size: 1.8rem; }
         .loading { text-align: center; font-size: 1.1rem; color: #94a3b8; margin-top: 50px; }
-        .news-card { background: #1e293b; padding: 18px; margin-bottom: 14px; border-radius: 8px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .news-title { color: #f8fafc; text-decoration: none; font-weight: bold; font-size: 1.15rem; display: block; line-height: 1.4; }
-        .news-title:hover { color: #38bdf8; text-decoration: underline; }
-        .footer { text-align: center; margin-top: 40px; font-size: 0.85rem; color: #64748b; }
+        .news-card { background: #1e293b; padding: 18px; margin-bottom: 14px; border-radius: 8px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: 0.2s; }
+        .news-card:hover { background: #233149; transform: translateX(4px); }
+        .news-title { color: #f8fafc; text-decoration: none; font-weight: bold; font-size: 1.1rem; display: block; line-height: 1.4; }
+        .news-date { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
+        .footer { text-align: center; margin-top: 40px; font-size: 0.8rem; color: #475569; }
     </style>
 </head>
 <body>
 
-    <h1>🔊 넥스트레이드(Nextrade) 실시간 뉴스판</h1>
-    <div id="news-list" class="loading">네이버에서 '넥스트레이드' 최신 뉴스를 불러오는 중입니다...</div>
-    <div class="footer">브라우저 창을 켜두시면 실시간 뉴스를 모아볼 수 있습니다.</div>
+    <h1>📊 넥스트레이드(Nextrade) 실시간 뉴스 전광판</h1>
+    <div id="news-list" class="loading">네이버 뉴스에서 최신 정보를 가져오는 중입니다...</div>
+    <div class="footer">본 사이트는 1분마다 자동으로 새로운 기사를 갱신합니다.</div>
 
     <script>
-        // 네이버 뉴스 검색결과 RSS 피드 주소 (넥스트레이드 검색결과)
-        const naverRssUrl = "https://newssearch.naver.com/search.naver?where=rss&query=%EB%84%A5%EC%8A%A4%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%93%9C";
+        // 네이버 뉴스의 '넥스트레이드' 검색 RSS 주소
+        const naverRss = "https://newssearch.naver.com/search.naver?where=rss&query=%EB%84%A5%EC%8A%A4%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%93%9C";
         
-        // CORS 에러를 우회하기 위한 가장 안정적인 무료 통로 (corsproxy.io)
-        const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(naverRssUrl);
+        // 네이버 보안망을 우회하여 데이터를 깔끔한 JSON 파일로 바꿔주는 글로벌 무료 공용 서버 주소
+        const reliableProxy = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(naverRss)}`;
 
-        function fetchNews() {
-            fetch(proxyUrl)
-            .then(response => {
-                if (!response.ok) throw new Error("네트워크 응답 에러");
-                return response.text();
+        function getNextradeNews() {
+            fetch(reliableProxy)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
             })
-            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
             .then(data => {
-                const items = data.querySelectorAll("item");
-                let html = "";
+                const newsListDiv = document.getElementById("news-list");
                 
-                if (items.length === 0) {
-                    document.getElementById("news-list").innerHTML = "<p style='text-align:center; color:#94a3b8;'>최근 등록된 '넥스트레이드' 관련 뉴스가 없습니다.</p>";
+                if (!data.items || data.items.length === 0) {
+                    newsListDiv.innerHTML = "<p style='text-align:center; color:#94a3b8;'>최근 등록된 관련 뉴스가 없습니다.</p>";
                     return;
                 }
 
-                items.forEach(el => {
-                    const title = el.querySelector("title").textContent;
-                    const link = el.querySelector("link").textContent;
+                let html = "";
+                data.items.forEach(item => {
+                    // 기사 등록 시간 포맷 이쁘게 변경
+                    const postDate = item.pubDate ? item.pubDate.substring(0, 16) : "";
                     
                     html += `
                     <div class="news-card">
-                        <a href="${link}" target="_blank" class="news-title">${title}</a>
+                        <a href="${item.link}" target="_blank" class="news-title">${item.title}</a>
+                        <div class="news-date">📅 기사 등록일: ${postDate}</div>
                     </div>
                     `;
                 });
                 
-                const newsListDiv = document.getElementById("news-list");
                 newsListDiv.classList.remove("loading");
                 newsListDiv.innerHTML = html;
             })
             .catch(err => {
-                console.error(err);
-                document.getElementById("news-list").innerHTML = "<p style='text-align:center; color:#ef4444;'>뉴스 데이터를 가져오는 데 실패했습니다. 잠시 후 새로고침(F5) 해주세요.</p>";
+                document.getElementById("news-list").innerHTML = "<p style='text-align:center; color:#ef4444;'>네이버 뉴스에 접속할 수 없습니다. 잠시 후 새로고침(F5) 해주세요.</p>";
             });
         }
 
-        // 사이트 열리자마자 뉴스 불러오기
-        fetchNews();
+        // 사이트 켜지자마자 첫 실행
+        getNextradeNews();
         
-        // 1분(60000ms)마다 자동으로 네이버 뉴스를 새로 긁어옴
-        setInterval(fetchNews, 60000);
+        // 1분(60000밀리초)마다 화면 안 지고 계속 최신 뉴스를 새로고침함
+        setInterval(getNextradeNews, 60000);
     </script>
 </body>
 </html>
