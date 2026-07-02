@@ -2,31 +2,73 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>넥스트레이드 뉴스 현황</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>넥스트레이드 실시간 뉴스판</title>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #38bdf8; text-align: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-top: 20px; }
+        .loading { text-align: center; font-size: 1.1rem; color: #94a3b8; margin-top: 50px; }
+        .news-card { background: #1e293b; padding: 18px; margin-bottom: 14px; border-radius: 8px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .news-title { color: #f8fafc; text-decoration: none; font-weight: bold; font-size: 1.15rem; display: block; line-height: 1.4; }
+        .news-title:hover { color: #38bdf8; text-decoration: underline; }
+        .footer { text-align: center; margin-top: 40px; font-size: 0.85rem; color: #64748b; }
+    </style>
 </head>
-<body style="background-color: #0f172a; color: white; text-align: center; font-family: sans-serif; padding-top: 100px;">
+<body>
+
     <h1>🔊 넥스트레이드(Nextrade) 실시간 뉴스판</h1>
-    <p>네이버 뉴스에서 '넥스트레이드' 기사를 실시간으로 가져오는 중입니다...</p>
-    <p>최대 10분 뒤에 이 페이지를 새로고침(F5) 해보세요!</p>
+    <div id="news-list" class="loading">네이버에서 '넥스트레이드' 최신 뉴스를 불러오는 중입니다...</div>
+    <div class="footer">브라우저 창을 켜두시면 실시간 뉴스를 모아볼 수 있습니다.</div>
+
     <script>
-        // 자동으로 네이버 뉴스 실시간 연동해주는 임시 주소
-        fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://search.naver.com/search.naver?where=news&query=%EB%84%A5%EC%8A%A4%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%93%9C&sm=tab_smr&nso=so:dd,p:all,a:all'))
-        .then(response => response.json())
-        .then(data => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data.contents, 'text/html');
-            const articles = doc.querySelectorAll('ul.list_news li.bx');
-            let html = '';
-            articles.forEach(art => {
-                const titleEl = art.querySelector('a.news_tit');
-                if(titleEl) {
-                    html += `<div style="background:#1e293b; padding:15px; margin:15px auto; max-width:600px; border-radius:8px; text-align:left; border-left:4px solid #38bdf8;">
-                        <a href="${titleEl.href}" target="_blank" style="color:white; text-decoration:none; font-weight:bold; font-size:1.1rem;">${titleEl.innerText}</a>
-                    </div>`;
+        // 네이버 뉴스 검색결과 RSS 피드 주소 (넥스트레이드 검색결과)
+        const naverRssUrl = "https://newssearch.naver.com/search.naver?where=rss&query=%EB%84%A5%EC%8A%A4%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%93%9C";
+        
+        // CORS 에러를 우회하기 위한 가장 안정적인 무료 통로 (corsproxy.io)
+        const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(naverRssUrl);
+
+        function fetchNews() {
+            fetch(proxyUrl)
+            .then(response => {
+                if (!response.ok) throw new Error("네트워크 응답 에러");
+                return response.text();
+            })
+            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+            .then(data => {
+                const items = data.querySelectorAll("item");
+                let html = "";
+                
+                if (items.length === 0) {
+                    document.getElementById("news-list").innerHTML = "<p style='text-align:center; color:#94a3b8;'>최근 등록된 '넥스트레이드' 관련 뉴스가 없습니다.</p>";
+                    return;
                 }
+
+                items.forEach(el => {
+                    const title = el.querySelector("title").textContent;
+                    const link = el.querySelector("link").textContent;
+                    
+                    html += `
+                    <div class="news-card">
+                        <a href="${link}" target="_blank" class="news-title">${title}</a>
+                    </div>
+                    `;
+                });
+                
+                const newsListDiv = document.getElementById("news-list");
+                newsListDiv.classList.remove("loading");
+                newsListDiv.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById("news-list").innerHTML = "<p style='text-align:center; color:#ef4444;'>뉴스 데이터를 가져오는 데 실패했습니다. 잠시 후 새로고침(F5) 해주세요.</p>";
             });
-            if(html) document.body.innerHTML = `<h1 style="color:#38bdf8; text-align:center; margin-top:30px;">🔊 넥스트레이드(Nextrade) 실시간 뉴스판</h1>` + html;
-        });
+        }
+
+        // 사이트 열리자마자 뉴스 불러오기
+        fetchNews();
+        
+        // 1분(60000ms)마다 자동으로 네이버 뉴스를 새로 긁어옴
+        setInterval(fetchNews, 60000);
     </script>
 </body>
 </html>
