@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nextrade 실시간 뉴스 모니터링</title>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #38bdf8; text-align: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-top: 20px; font-size: 1.8rem; }
+        .loading { text-align: center; font-size: 1.1rem; color: #94a3b8; margin-top: 50px; }
+        .news-card { background: #1e293b; padding: 18px; margin-bottom: 14px; border-radius: 8px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: 0.2s; }
+        .news-card:hover { background: #233149; transform: translateX(4px); }
+        .news-title { color: #f8fafc; text-decoration: none; font-weight: bold; font-size: 1.1rem; display: block; line-height: 1.4; }
+        .news-title:hover { color: #38bdf8; text-decoration: underline; }
+        .news-date { font-size: 0.8rem; color: #64748b; margin-top: 8px; }
+        .footer { text-align: center; margin-top: 40px; font-size: 0.8rem; color: #475569; }
+    </style>
+</head>
+<body>
+
+    <h1>📊 넥스트레이드(Nextrade) 실시간 뉴스 (최신순)</h1>
+    <div id="news-list" class="loading">최신 뉴스를 긁어오는 중입니다... 잠시만 기다려주세요.</div>
+    <div class="footer">이 브라우저 창을 켜두시면 1분마다 자동으로 새로운 기사가 추가됩니다.</div>
+
+    <script>
+        // 최근 7일간의 구글 뉴스 데이터를 요청하는 주소
+        const query = "넥스트레이드 when:7d";
+        const googleNewsUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent(query) + "&hl=ko&gl=KR&ceid=KR:ko";
+        
+        // 차단 걱정 없는 전세계 공용 안정적인 우회 통로 주소
+        const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(googleNewsUrl);
+
+        function getNextradeNews() {
+            fetch(proxyUrl)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+                const items = xmlDoc.querySelectorAll("item");
+                const newsListDiv = document.getElementById("news-list");
+                
+                if (items.length === 0) {
+                    newsListDiv.innerHTML = "<p style='text-align:center; color:#94a3b8;'>최근 등록된 '넥스트레이드' 관련 최신 뉴스가 없습니다.</p>";
+                    return;
+                }
+
+                // 기사들을 '진짜 최신 발행 시간 순서'대로 칼같이 정렬
+                const sortedItems = Array.from(items).sort((a, b) => {
+                    return new Date(b.querySelector("pubDate").textContent) - new Date(a.querySelector("pubDate").textContent);
+                });
+
+                let html = "";
+                // 화면에는 가장 최근 기사 최대 30개까지만 노출
+                const maxItems = Math.min(sortedItems.length, 30); 
+                
+                for (let i = 0; i < maxItems; i++) {
+                    const title = sortedItems[i].querySelector("title").textContent;
+                    const link = sortedItems[i].querySelector("link").textContent;
+                    const pubDate = sortedItems[i].querySelector("pubDate").textContent;
+                    
+                    const formattedDate = new Date(pubDate).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+                    html += `
+                    <div class="news-card">
+                        <a href="${link}" target="_blank" class="news-title">${title}</a>
+                        <div class="news-date">📅 기사 등록: ${formattedDate}</div>
+                    </div>
+                    `;
+                }
+                
+                newsListDiv.classList.remove("loading");
+                newsListDiv.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById("news-list").innerHTML = "<p style='text-align:center; color:#ef4444;'>데이터를 불러오는 데 실패했습니다. 잠시 후 새로고침(F5) 해주세요.</p>";
+            });
+        }
+
+        // 사이트 열자마자 뉴스 불러오기
+        getNextradeNews();
+        
+        // 창 켜두면 1분마다 알아서 최신 뉴스 체크해서 갱신하기
+        setInterval(getNextradeNews, 60000);
+    </script>
+</body>
+</html>
