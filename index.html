@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nextrade 뉴스 실시간 모니터링</title>
+    <title>Nextrade 실시간 뉴스 모니터링</title>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
         h1 { color: #38bdf8; text-align: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-top: 20px; font-size: 1.8rem; }
@@ -18,15 +18,16 @@
 </head>
 <body>
 
-    <h1>📊 넥스트레이드(Nextrade) 실시간 뉴스 전광판</h1>
-    <div id="news-list" class="loading">구글 뉴스를 통해 '넥스트레이드' 정보를 실시간으로 가져오는 중입니다...</div>
+    <h1>📊 넥스트레이드(Nextrade) 실시간 뉴스 (최신순)</h1>
+    <div id="news-list" class="loading">구글 뉴스를 통해 최신 기사를 가져오는 중입니다...</div>
     <div class="footer">본 사이트는 1분마다 새로운 뉴스를 자동으로 갱신합니다.</div>
 
     <script>
-        // 구글 뉴스에서 '넥스트레이드' 키워드로 한글(HL=ko) 기사를 최신순으로 긁어오는 주소입니다.
-        const googleNewsUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent("넥스트레이드") + "&hl=ko&gl=KR&ceid=KR:ko";
+        // 핵심 변경: 검색어 뒤에 ' when:1h' 또는 'when:1d'를 붙이면 구글이 강제로 최신순 정렬을 해줍니다.
+        // 최근 기사가 누락되지 않도록 최근 7일간의 글을 최신순으로 정렬하는 구글 공식 치트키 옵션입니다.
+        const query = "넥스트레이드 when:7d";
+        const googleNewsUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent(query) + "&hl=ko&gl=KR&ceid=KR:ko";
         
-        // 구글 데이터를 내 사이트 화면으로 연결해주는 가장 안전한 무료 통로
         const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(googleNewsUrl);
 
         function getNextradeNews() {
@@ -36,7 +37,6 @@
                 return res.json();
             })
             .then(data => {
-                // 구글 뉴스는 XML 형태라 데이터를 해석하는 과정이 필요합니다.
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                 const items = xmlDoc.querySelectorAll("item");
@@ -44,20 +44,23 @@
                 const newsListDiv = document.getElementById("news-list");
                 
                 if (items.length === 0) {
-                    newsListDiv.innerHTML = "<p style='text-align:center; color:#94a3b8;'>최근 등록된 '넥스트레이드' 관련 뉴스가 없습니다.</p>";
+                    newsListDiv.innerHTML = "<p style='text-align:center; color:#94a3b8;'>최근 7일간 등록된 '넥스트레이드' 관련 최신 뉴스가 없습니다.</p>";
                     return;
                 }
 
+                // 구글 뉴스 XML 자체를 날짜순(최신순)으로 정렬 한 번 더 검증
+                const sortedItems = Array.from(items).sort((a, b) => {
+                    return new Date(b.querySelector("pubDate").textContent) - new Date(a.querySelector("pubDate").textContent);
+                });
+
                 let html = "";
-                // 최신 기사 최대 20개만 노출
-                const maxItems = Math.min(items.length, 20);
+                const maxItems = Math.min(sortedItems.length, 30); // 최신 기사 최대 30개 노출
                 
                 for (let i = 0; i < maxItems; i++) {
-                    const title = items[i].querySelector("title").textContent;
-                    const link = items[i].querySelector("link").textContent;
-                    const pubDate = items[i].querySelector("pubDate").textContent;
+                    const title = sortedItems[i].querySelector("title").textContent;
+                    const link = sortedItems[i].querySelector("link").textContent;
+                    const pubDate = sortedItems[i].querySelector("pubDate").textContent;
                     
-                    // 날짜를 보기 편하게 잘라줍니다.
                     const formattedDate = new Date(pubDate).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
                     html += `
@@ -77,11 +80,8 @@
             });
         }
 
-        // 사이트 열리자마자 바로 실행
         getNextradeNews();
-        
-        // 1분(60000ms)마다 백그라운드에서 뉴스를 계속 새로고침
-        setInterval(getNextradeNews, 60000);
+        setInterval(getNextradeNews, 60000); // 1분마다 자동 갱신
     </script>
 </body>
 </html>
