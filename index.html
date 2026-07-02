@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>넥스트레이드 뉴스 현황</title>
+</head>
+<body style="background-color: #0f172a; color: white; text-align: center; font-family: sans-serif; padding-top: 100px;">
+    <h1>🔊 넥스트레이드(Nextrade) 실시간 뉴스판</h1>
+    <p>네이버 뉴스에서 '넥스트레이드' 기사를 실시간으로 가져오는 중입니다...</p>
+    <p>최대 10분 뒤에 이 페이지를 새로고침(F5) 해보세요!</p>
+    <script>
+        // 자동으로 네이버 뉴스 실시간 연동해주는 임시 주소
+        fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://search.naver.com/search.naver?where=news&query=%EB%84%A5%EC%8A%A4%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%93%9C&sm=tab_smr&nso=so:dd,p:all,a:all'))
+        .then(response => response.json())
+        .then(data => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+            const articles = doc.querySelectorAll('ul.list_news li.bx');
+            let html = '';
+            articles.forEach(art => {
+                const titleEl = art.querySelector('a.news_tit');
+                if(titleEl) {
+                    html += `<div style="background:#1e293b; padding:15px; margin:15px auto; max-width:600px; border-radius:8px; text-align:left; border-left:4px solid #38bdf8;">
+                        <a href="${titleEl.href}" target="_blank" style="color:white; text-decoration:none; font-weight:bold; font-size:1.1rem;">${titleEl.innerText}</a>
+                    </div>`;
+                }
+            });
+            if(html) document.body.innerHTML = `<h1 style="color:#38bdf8; text-align:center; margin-top:30px;">🔊 넥스트레이드(Nextrade) 실시간 뉴스판</h1>` + html;
+        });
+    </script>
+</body>
+</html>
